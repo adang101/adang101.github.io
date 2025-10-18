@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eyewear Frame Comparator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better UI feedback and layout */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .form-container, .list-container {
+            max-height: calc(100vh - 4rem); /* Full height minus header */
+            overflow-y: auto;
+        }
+        .canvas-container {
+            background-image:
+                linear-gradient(rgba(200, 200, 200, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(200, 200, 200, 0.1) 1px, transparent 1px);
+            background-size: 10px 10px;
+        }
+        /* Style for selected list item */
+        .selected-item {
+            background-color: #e0f2fe; /* Light blue */
+            border-left-color: #0ea5e9; /* Sky blue */
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="app" class="flex flex-col md:flex-row min-h-screen">
+        <!-- Left Panel: Form and Frame List -->
+        <aside class="w-full md:w-1/3 lg:w-1/4 p-4 md:p-6 bg-white border-r border-gray-200 flex flex-col space-y-6">
+            <header>
+                <h1 class="text-2xl font-bold text-gray-900">Frame Comparator</h1>
+                <p class="text-sm text-gray-500">Add or select frames to visualize their silhouette.</p>
+            </header>
+
+            <!-- Form for Adding/Editing Frames -->
+            <div class="form-container flex-shrink-0">
+                <form id="frame-form" class="space-y-4">
+                    <h2 id="form-title" class="text-lg font-semibold text-gray-700 border-b pb-2">Add New Frame</h2>
+                    <input type="hidden" id="edit-id">
+                    <div>
+                        <label for="brand" class="block text-sm font-medium text-gray-600">Brand</label>
+                        <input type="text" id="brand" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="model" class="block text-sm font-medium text-gray-600">Model</label>
+                        <input type="text" id="model" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="lens-width" class="block text-sm font-medium text-gray-600">Lens Width (A)</label>
+                            <input type="number" id="lens-width" min="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="lens-height" class="block text-sm font-medium text-gray-600">Lens Height (B)</label>
+                            <input type="number" id="lens-height" min="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="bridge-width" class="block text-sm font-medium text-gray-600">Bridge (DBL)</label>
+                            <input type="number" id="bridge-width" min="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="arm-length" class="block text-sm font-medium text-gray-600">Arm Length</label>
+                            <input type="number" id="arm-length" min="1" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 pt-2">
+                        <button type="submit" id="submit-button" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Add Frame</button>
+                        <button type="button" id="cancel-edit-button" class="hidden w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- List of Saved Frames -->
+            <div class="list-container flex-grow">
+                <h2 class="text-lg font-semibold text-gray-700 border-b pb-2 mb-2">Saved Frames</h2>
+                <ul id="frames-list" class="space-y-2">
+                    <!-- Frame items will be injected here -->
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Right Panel: Canvas Visualization -->
+        <main class="w-full md:w-2/3 lg:w-3/4 p-4 md:p-6 bg-gray-100 flex flex-col">
+            <div class="flex-grow flex flex-col items-center justify-center bg-white rounded-lg shadow-inner canvas-container">
+                 <div id="canvas-info" class="p-2 text-center text-gray-500 h-10">Select one or more frames to compare.</div>
+                 <canvas id="frame-canvas" class="w-full h-auto"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Element References ---
+            const form = document.getElementById('frame-form');
+            const formTitle = document.getElementById('form-title');
+            const editIdInput = document.getElementById('edit-id');
+            const brandInput = document.getElementById('brand');
+            const modelInput = document.getElementById('model');
+            const lensWidthInput = document.getElementById('lens-width');
+            const lensHeightInput = document.getElementById('lens-height');
+            const bridgeWidthInput = document.getElementById('bridge-width');
+            const armLengthInput = document.getElementById('arm-length');
+            const submitButton = document.getElementById('submit-button');
+            const cancelEditButton = document.getElementById('cancel-edit-button');
+            const framesList = document.getElementById('frames-list');
+            const canvas = document.getElementById('frame-canvas');
+            const canvasInfo = document.getElementById('canvas-info');
+            const ctx = canvas.getContext('2d');
+
+            // --- State Management ---
+            let frames = [];
+            let selectedFrameIds = [];
+            const comparisonColors = ['rgba(239, 68, 68, 0.6)', 'rgba(59, 130, 246, 0.6)', 'rgba(234, 179, 8, 0.6)', 'rgba(34, 197, 94, 0.6)', 'rgba(139, 92, 246, 0.6)'];
+
+            // --- Utility Functions ---
+            const getFrames = () => JSON.parse(localStorage.getItem('eyewearFrames') || '[]');
+            const saveFrames = (data) => localStorage.setItem('eyewearFrames', JSON.stringify(data));
+
+            // --- Core Logic Functions ---
+
+            /**
+             * Renders the list of saved frames in the UI.
+             */
+            const renderList = () => {
+                framesList.innerHTML = '';
+                if (frames.length === 0) {
+                    framesList.innerHTML = `<li class="text-center text-gray-500 p-4">No frames saved yet.</li>`;
+                    return;
+                }
+                
+                frames.forEach(frame => {
+                    const isSelected = selectedFrameIds.includes(frame.id);
+                    const li = document.createElement('li');
+                    li.className = `p-3 border-l-4 cursor-pointer hover:bg-gray-100 transition-colors ${isSelected ? 'selected-item' : 'border-gray-300'}`;
+                    li.dataset.id = frame.id;
+                    
+                    li.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="font-semibold text-gray-800">${frame.brand} <span class="font-normal text-gray-600">${frame.model}</span></p>
+                                <p class="text-xs text-gray-500">
+                                    ${frame.lensWidth} - ${frame.bridgeWidth} - ${frame.armLength} | H: ${frame.lensHeight}
+                                </p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button data-action="edit" data-id="${frame.id}" class="p-1.5 text-gray-500 hover:text-sky-600 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg>
+                                </button>
+                                <button data-action="delete" data-id="${frame.id}" class="p-1.5 text-gray-500 hover:text-red-600 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    li.addEventListener('click', (e) => handleListClick(e, frame.id));
+                    framesList.appendChild(li);
+                });
+            };
+
+            /**
+             * Resizes and clears the canvas, then draws selected frames.
+             */
+            const drawFrames = () => {
+                const container = canvas.parentElement;
+                const width = container.clientWidth;
+                // Maintain a 2:1 aspect ratio
+                const height = width / 2;
+                canvas.width = width;
+                canvas.height = height;
+
+                ctx.clearRect(0, 0, width, height);
+                canvasInfo.innerHTML = '';
+                
+                const framesToDraw = frames.filter(f => selectedFrameIds.includes(f.id));
+                if (framesToDraw.length === 0) {
+                    canvasInfo.textContent = 'Select one or more frames to compare.';
+                    return;
+                }
+
+                // Determine scale to fit all selected frames
+                let maxFrameWidth = 0;
+                framesToDraw.forEach(frame => {
+                    const totalWidth = frame.lensWidth * 2 + frame.bridgeWidth;
+                    if (totalWidth > maxFrameWidth) maxFrameWidth = totalWidth;
+                });
+                
+                const scale = (width * 0.9) / maxFrameWidth;
+                const centerX = width / 2;
+                const centerY = height / 2;
+                let colorIndex = 0;
+
+                framesToDraw.forEach(frame => {
+                    const color = comparisonColors[colorIndex % comparisonColors.length];
+                    drawSingleFrame(frame, scale, centerX, centerY, color);
+                    
+                    // Add legend
+                    const span = document.createElement('span');
+                    span.className = 'inline-flex items-center text-xs font-semibold mr-3';
+                    span.innerHTML = `<span class="w-3 h-3 rounded-full mr-1.5" style="background-color: ${color};"></span> ${frame.brand} ${frame.model}`;
+                    canvasInfo.appendChild(span);
+
+                    colorIndex++;
+                });
+            };
+
+            /**
+             * Helper to draw a single frame silhouette on the canvas.
+             */
+            const drawSingleFrame = (frame, scale, cx, cy, color) => {
+                const lw = frame.lensWidth * scale;
+                const lh = frame.lensHeight * scale;
+                const bw = frame.bridgeWidth * scale;
+                const lensRadius = lw * 0.15; // Rounded corners
+
+                ctx.fillStyle = color;
+                ctx.strokeStyle = color.replace('0.6', '1');
+                ctx.lineWidth = 2;
+                
+                // --- Left Lens ---
+                const leftLensX = cx - (bw / 2) - lw;
+                const leftLensY = cy - (lh / 2);
+                drawRoundedRect(leftLensX, leftLensY, lw, lh, lensRadius);
+
+                // --- Right Lens ---
+                const rightLensX = cx + (bw / 2);
+                const rightLensY = cy - (lh / 2);
+                drawRoundedRect(rightLensX, rightLensY, lw, lh, lensRadius);
+                
+                // --- Bridge ---
+                const bridgeHeight = Math.max(5, lh * 0.1);
+                const bridgeY = cy - (lh*0.1) - (bridgeHeight / 2);
+                ctx.fillRect(cx - bw / 2, bridgeY, bw, bridgeHeight);
+            };
+
+            /**
+             * Helper to draw a rectangle with rounded corners.
+             */
+            const drawRoundedRect = (x, y, width, height, radius) => {
+                ctx.beginPath();
+                ctx.moveTo(x + radius, y);
+                ctx.lineTo(x + width - radius, y);
+                ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+                ctx.lineTo(x + width, y + height - radius);
+                ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                ctx.lineTo(x + radius, y + height);
+                ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+                ctx.lineTo(x, y + radius);
+                ctx.quadraticCurveTo(x, y, x + radius, y);
+                ctx.closePath();
+                ctx.fill();
+            };
+            
+
+            /**
+             * Resets the form to its default state for adding new frames.
+             */
+            const resetForm = () => {
+                form.reset();
+                editIdInput.value = '';
+                formTitle.textContent = 'Add New Frame';
+                submitButton.textContent = 'Add Frame';
+                cancelEditButton.classList.add('hidden');
+            };
+
+            // --- Event Handlers ---
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = editIdInput.value;
+                const frameData = {
+                    brand: brandInput.value.trim(),
+                    model: modelInput.value.trim(),
+                    lensWidth: parseInt(lensWidthInput.value, 10),
+                    lensHeight: parseInt(lensHeightInput.value, 10),
+                    bridgeWidth: parseInt(bridgeWidthInput.value, 10),
+                    armLength: parseInt(armLengthInput.value, 10) || 0,
+                };
+
+                if (id) { // Update existing
+                    const index = frames.findIndex(f => f.id === id);
+                    if (index > -1) {
+                        frames[index] = { ...frames[index], ...frameData };
+                    }
+                } else { // Add new
+                    frameData.id = `frame_${new Date().getTime()}`;
+                    frames.push(frameData);
+                }
+
+                saveFrames(frames);
+                renderList();
+                resetForm();
+            });
+
+            const handleListClick = (e, frameId) => {
+                const action = e.target.closest('button')?.dataset.action;
+
+                if (action === 'edit') {
+                    e.stopPropagation();
+                    const frameToEdit = frames.find(f => f.id === frameId);
+                    if (frameToEdit) {
+                        editIdInput.value = frameToEdit.id;
+                        brandInput.value = frameToEdit.brand;
+                        modelInput.value = frameToEdit.model;
+                        lensWidthInput.value = frameToEdit.lensWidth;
+                        lensHeightInput.value = frameToEdit.lensHeight;
+                        bridgeWidthInput.value = frameToEdit.bridgeWidth;
+                        armLengthInput.value = frameToEdit.armLength;
+
+                        formTitle.textContent = 'Edit Frame';
+                        submitButton.textContent = 'Update Frame';
+                        cancelEditButton.classList.remove('hidden');
+                        brandInput.focus();
+                    }
+                } else if (action === 'delete') {
+                    e.stopPropagation();
+                    // In a real app, use a custom modal instead of confirm()
+                    if (confirm('Are you sure you want to delete this frame?')) {
+                        frames = frames.filter(f => f.id !== frameId);
+                        selectedFrameIds = selectedFrameIds.filter(id => id !== frameId);
+                        saveFrames(frames);
+                        renderList();
+                        drawFrames();
+                    }
+                } else {
+                    // This handles selecting/deselecting the item
+                    const index = selectedFrameIds.indexOf(frameId);
+                    if (index > -1) {
+                        selectedFrameIds.splice(index, 1);
+                    } else {
+                        selectedFrameIds.push(frameId);
+                    }
+                    renderList(); // Re-render to update selection style
+                    drawFrames();
+                }
+            };
+            
+            cancelEditButton.addEventListener('click', resetForm);
+            
+            // Redraw on window resize
+            window.addEventListener('resize', drawFrames);
+
+
+            // --- Initialization ---
+            const init = () => {
+                frames = getFrames();
+                renderList();
+                drawFrames();
+            };
+
+            init();
+        });
+    </script>
+
+</body>
+</html>
